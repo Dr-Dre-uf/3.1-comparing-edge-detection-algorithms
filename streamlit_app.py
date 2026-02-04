@@ -3,6 +3,21 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from PIL import Image
+import psutil
+import os
+
+# --- MONITORING UTILITY ---
+def get_system_usage():
+    """Fetches CPU and Memory usage for the current process."""
+    process = psutil.Process(os.getpid())
+    # Resident Set Size (Physical Memory) converted to MB
+    mem_mb = process.memory_info().rss / (1024 * 1024)
+    # CPU usage over a short interval (0.1s)
+    cpu_percent = process.cpu_percent(interval=0.1)
+    return cpu_percent, mem_mb
+
+# --- UI CONFIGURATION ---
+st.set_page_config(page_title="Edge Detection Monitor", layout="wide")
 
 # Sidebar for edge detection parameters
 st.sidebar.header("Edge Detection Parameters")
@@ -17,7 +32,15 @@ threshold1 = st.sidebar.slider("Canny Threshold 1", 0, 255, 100, help="Lower thr
 threshold2 = st.sidebar.slider("Canny Threshold 2", 0, 255, 200, help="Upper threshold for Canny edge detection.")
 colormap = st.sidebar.selectbox("Colormap", ["gray", "viridis", "plasma", "magma", "inferno"], help="Select the colormap for image display.")
 
-# Warning message
+# --- DISPLAY MONITORING METRICS ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("App Performance")
+cpu, mem = get_system_usage()
+col_cpu, col_mem = st.sidebar.columns(2)
+col_cpu.metric("CPU Usage", f"{cpu}%")
+col_mem.metric("Memory", f"{mem:.1f} MB")
+
+# --- MAIN APP LOGIC ---
 st.warning("Please do not upload any sensitive or personal data.")
 
 # Image Generation/Upload
@@ -32,13 +55,13 @@ if mode == "Upload Image":
         st.info("Please upload an image to continue.")
         img = None
 else:
+    # Generate Synthetic Image
     img = np.zeros((100, 100), dtype=np.uint8)
     cv2.rectangle(img, (30, 30), (70, 70), 255, -1)
     noise = np.random.randint(0, noise_level, (100, 100), dtype=np.uint8)
     img = cv2.add(img, noise)
 
 if img is not None:
-
     # Apply Edge Detection
     sobel_x = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=kernel_size)
     sobel_y = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=kernel_size)
@@ -52,18 +75,25 @@ if img is not None:
     # Display Images
     st.header("Edge Detection Results")
     st.markdown("Adjust the parameters to explore the effects on edge detection.")
+    
     col1, col2, col3 = st.columns(3)
+    
     with col1:
+        st.subheader("Original/Synthetic")
         fig1, ax1 = plt.subplots()
         ax1.imshow(img, cmap=colormap)
         ax1.axis('off')
         st.pyplot(fig1)
+        
     with col2:
+        st.subheader("Sobel Filter")
         fig2, ax2 = plt.subplots()
         ax2.imshow(sobel_edges, cmap=colormap)
         ax2.axis('off')
         st.pyplot(fig2)
+        
     with col3:
+        st.subheader("Canny Edge")
         fig3, ax3 = plt.subplots()
         ax3.imshow(canny_edges, cmap=colormap)
         ax3.axis('off')
