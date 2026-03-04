@@ -8,6 +8,7 @@ import os
 
 # --- MONITORING UTILITY ---
 def get_system_usage():
+    """Fetches CPU and Memory usage for the current process."""
     process = psutil.Process(os.getpid())
     mem_mb = process.memory_info().rss / (1024 * 1024)
     cpu_percent = process.cpu_percent(interval=0.1)
@@ -24,7 +25,7 @@ with st.expander("📖 Instructions & Learning Objectives", expanded=True):
     2. **Parameter Tuning:** Experiment with kernel sizes and thresholds to find the 'goldilocks' zone for edge detection.
     3. **Automated Segmentation:** Compare manual thresholding logic to Otsu’s automated method.
     
-    **Instructions:** Adjust the sliders in the sidebar and use the 'Reveal Explanation' buttons under each result to check your understanding.
+    **Task:** Adjust the sliders in the sidebar and use the 'Reveal Logic' buttons under each result to check your understanding against the notebook solutions.
     """)
 
 # Sidebar for parameters
@@ -70,29 +71,32 @@ else:
     img = cv2.add(img, noise)
 
 if img is not None:
-    # Processing
+    # 1. Edge Detection Logic
     sobel_x = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=kernel_size)
     sobel_y = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=kernel_size)
     sobel_edges = cv2.magnitude(sobel_x, sobel_y)
     canny_edges = cv2.Canny(img, threshold1, threshold2)
     
+    # 2. Otsu's Thresholding Logic (Problem 3.2)
     blurred = cv2.GaussianBlur(img, (5, 5), blur_sigma)
     _, otsu_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
+    # Normalize Sobel for display
     sobel_edges = cv2.normalize(sobel_edges, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
 
-    # Layout
+    # Display 4-Column Layout
     st.header("Analysis Results")
     cols = st.columns(4)
     
     titles = ["Input Image", "Sobel Filter", "Canny Edge", "Otsu Threshold"]
     images = [img, sobel_edges, canny_edges, otsu_thresh]
     
-    # Reveal Explanations (Notebook Alignment)
+    # Reveal Explanations (Aligned with Notebook Answers)
     explanations = [
-        "This is the raw data. In medical imaging, noise often comes from sensor heat or transmission errors.",
-        "Sobel is a first-order derivative. It is fast but amplifies high-frequency noise.",
-        "Canny uses non-maximum suppression and hysteresis, making it much more robust to noise than Sobel.",
-        "Otsu's method finds the optimal threshold by minimizing intra-class variance. Best used after blurring!"
+        "Raw input data. In medical settings, noise can obscure critical diagnostic details.",
+        "Sobel is sensitive to noise because it calculates the intensity gradient directly.",
+        "Canny is more robust as it uses built-in filtering and non-maximum suppression to find clean edges.",
+        "Otsu's method automatically calculates the optimal threshold to separate foreground from background."
     ]
 
     for i, col in enumerate(cols):
@@ -103,18 +107,6 @@ if img is not None:
             ax.axis('off')
             st.pyplot(fig)
             
-            # The "Reveal" Feature
+            # The "Reveal" Feature for Active Recall
             if st.checkbox(f"Reveal Logic {i+1}", key=f"reveal_{i}"):
                 st.info(explanations[i])
-
-    # Download Section
-    st.markdown("---")
-    st.subheader("Export for Portfolio")
-    col_dl1, col_dl2 = st.columns(2)
-    with col_dl1:
-        # Convert Canny image to bytes for download
-        _, buffer = cv2.imencode('.png', canny_edges)
-        st.download_button("Download Canny Results", buffer.tobytes(), "canny_edges.png", "image/png")
-    with col_dl2:
-        _, buffer_otsu = cv2.imencode('.png', otsu_thresh)
-        st.download_button("Download Otsu Results", buffer_otsu.tobytes(), "otsu_segmentation.png", "image/png")
